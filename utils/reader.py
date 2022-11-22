@@ -24,6 +24,7 @@ class CoNLLReader(Dataset):
 
         self.label_to_id = {} if target_vocab is None else target_vocab
         self.instances = []
+        self.sentence_str = []
 
     def get_target_size(self):
         return len(set(self.label_to_id.values()))
@@ -53,6 +54,7 @@ class CoNLLReader(Dataset):
             mask_rep = torch.tensor(mask)
 
             self.instances.append((tokens_tensor, mask_rep, token_masks_rep, gold_spans_, tag_tensor))
+            self.sentence_str.append(sentence_str)
             instance_idx += 1
         logger.info('Finished reading {:d} instances from file {}'.format(len(self.instances), dataset_name))
 
