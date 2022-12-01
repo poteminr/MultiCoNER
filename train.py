@@ -1,6 +1,7 @@
 import torch
 from utils.dataset import CoNLLDataset, get_dataloader
 from transformers import set_seed
+from datasets import load_metric
 from model.baseline_model import BaselineModel
 from torch.optim import AdamW
 import numpy as np
@@ -18,6 +19,33 @@ def seed_everything(seed: int):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     set_seed(seed)
+
+
+def compute_metrics(predictions, labels, id_to_label, detailed_output=False):
+    metric = load_metric("seqeval")
+    predictions = np.argmax(predictions, axis=2)
+
+    # Remove ignored index (special tokens)
+    true_predictions = [
+        [id_to_label[p] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+
+    true_labels = [
+        [id_to_label[l] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+
+    results = metric.compute(predictions=true_predictions, references=true_labels)
+    if detailed_output:
+        return results
+    else:
+        return {
+            "precision": results["overall_precision"],
+            "recall": results["overall_recall"],
+            "f1": results["overall_f1"],
+            "accuracy": results["overall_accuracy"],
+        }
 
 
 def train(model, dataloader, epochs, lr=1e-5, optimizer=None):

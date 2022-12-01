@@ -37,7 +37,7 @@ class CoNLLDataset(Dataset):
 
     def get_target_size(self):
         if self.label_pad_token_id == -100:
-            return len(set(self.label_to_id.values())) + 1
+            return len(set(self.label_to_id.values())) + 1  # I think it should be removed
         else:
             return len(set(self.label_to_id.values()))
 
