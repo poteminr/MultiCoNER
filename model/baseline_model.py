@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModelForTokenClassification, AutoModel
@@ -6,10 +7,10 @@ from torchcrf import CRF
 
 class BaselineModel(nn.Module):
     def __init__(self,
-                 encoder_model,
-                 label_to_id,
-                 dropout_rate=0.1,
-                 viterbi_algorithm=True
+                 encoder_model: str,
+                 label_to_id: dict,
+                 dropout_rate: float = 0.1,
+                 viterbi_algorithm: bool = True
                  ):
         super(BaselineModel, self).__init__()
         self.tag_to_id = label_to_id
@@ -25,7 +26,7 @@ class BaselineModel(nn.Module):
         else:
             self.encoder = AutoModelForTokenClassification.from_pretrained(encoder_model, num_labels=self.target_size)
 
-    def forward(self, input_ids, labels, attention_mask):
+    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor):
         batch_size = input_ids.size(0)
         if self.viterbi_algorithm:
             embedded_text_input = self.encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state

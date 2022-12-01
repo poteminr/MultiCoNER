@@ -21,6 +21,7 @@ def seed_everything(seed: int):
 
 
 def train(model, dataloader, epochs, lr=1e-5, optimizer=None):
+    seed_everything(1007)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
 
@@ -33,14 +34,17 @@ def train(model, dataloader, epochs, lr=1e-5, optimizer=None):
         average_loss = 0
         model.train()
         pbar = tqdm(enumerate(dataloader), total=len(dataloader))
-
         for it, (input_ids, labels, attention_mask) in pbar:
             input_ids = input_ids.to(device)
             labels = labels.to(device)
             attention_mask = attention_mask.to(device)
 
-            output = model(input_ids, labels, attention_mask)
-            loss = output['loss']
+            if model.viterbi_algorithm:
+                loss, output_tags = model(input_ids, labels, attention_mask)
+            else:
+                output = model(input_ids, labels, attention_mask)
+                loss = output['loss']
+
             average_loss += loss.item()
 
             optimizer.zero_grad()
@@ -54,8 +58,7 @@ def train(model, dataloader, epochs, lr=1e-5, optimizer=None):
 
 
 if __name__ == "__main__":
-    seed_everything(1007)
     dataset = CoNLLDataset('train_dev/uk-train.conll', label_pad_token_id=None)
-    model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id)
+    baseline_model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id)
     train_loader = get_dataloader(dataset=dataset, batch_size=32, num_workers=10)
-    train(model=model, dataloader=train_loader, epochs=10)
+    train(model=baseline_model, dataloader=train_loader, epochs=10)

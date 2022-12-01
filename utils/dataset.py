@@ -11,30 +11,28 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class CoNLLDataset(Dataset):
     def __init__(self,
-                 file_path,
-                 max_instances=-1,
-                 max_length=50,
-                 target_vocab=None,
-                 encoder_model='cointegrated/rubert-tiny2',
-                 label_pad_token_id=-100
+                 file_path: str,
+                 max_instances: int = -1,
+                 max_length: int = 50,
+                 encoder_model: str = 'cointegrated/rubert-tiny2',
+                 label_pad_token_id: int | None = -100
                  ):
 
         self.max_instances = max_instances
         self.max_length = max_length
-        self.label_to_id = get_tagset() if target_vocab is None else target_vocab
+        self.label_to_id = get_tagset()
         self.id_to_label = {v: k for k, v in self.label_to_id.items()}
-        self.encoder_model = encoder_model
 
+        self.encoder_model = encoder_model
         self.tokenizer = AutoTokenizer.from_pretrained(self.encoder_model, model_max_length=self.max_length)
 
         self.pad_token = self.tokenizer.special_tokens_map['pad_token']
         self.pad_token_id = self.tokenizer.get_vocab()[self.pad_token]
         self.sep_token = self.tokenizer.special_tokens_map['sep_token']
-
         self.label_pad_token_id = self.pad_token_id if label_pad_token_id is None else label_pad_token_id
+
         self.instances = []
         self.sentences_words = []
-
         self.read_data(file_path)
 
     def get_target_size(self):
@@ -52,7 +50,7 @@ class CoNLLDataset(Dataset):
     def __getitem__(self, item):
         return self.instances[item]
 
-    def read_data(self, data):
+    def read_data(self, data: str):
         dataset_name = data if isinstance(data, str) else 'dataframe'
         logger.info('Reading file {}'.format(dataset_name))
         instance_idx = 0
@@ -73,6 +71,7 @@ class CoNLLDataset(Dataset):
             instance_idx += 1
         logger.info('Finished reading {:d} instances from file {}'.format(len(self.instances), dataset_name))
 
+    # function from huggingface Token Classification ipynb
     def tokenize_and_align_labels(self, tokenized_inputs, tags, label_all_tokens=True):
         previous_word_idx = None
         label_ids = []
@@ -95,7 +94,7 @@ class CoNLLDataset(Dataset):
         return label_ids
 
     @staticmethod
-    def typos_correction(label):
+    def typos_correction(label: str) -> str:
         if label[-4:] == 'Corp':
             return label[:-4] + "CORP"
 
@@ -123,5 +122,5 @@ class CoNLLDataset(Dataset):
         return input_ids_tensor, labels_tensor, attention_masks_tensor
 
 
-def get_dataloader(dataset, batch_size, num_workers=1):
+def get_dataloader(dataset: CoNLLDataset, batch_size: int, num_workers: int = 1):
     return DataLoader(dataset=dataset, batch_size=batch_size, collate_fn=dataset.data_collator, num_workers=num_workers)
