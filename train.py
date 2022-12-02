@@ -15,12 +15,12 @@ import wandb
 
 
 class TrainerConfig:
-    epochs = 10
-    lr = 1e-5
-    batch_size = 64
+    epochs = 20
+    lr = 1e-4
+    batch_size = 32
     betas = (0.9, 0.95)
-    clip_gradients = True
-    grad_norm_clip = 1.0
+    clip_gradients = False
+    grad_norm_clip = 10
     num_workers = 0
 
     def __init__(self, **kwargs):
