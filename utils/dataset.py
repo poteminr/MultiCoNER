@@ -120,7 +120,3 @@ class CoNLLDataset(Dataset):
             attention_masks_tensor[i, :seq_len] = attention_masks[i]
 
         return input_ids_tensor, labels_tensor, attention_masks_tensor
-
-
-def get_dataloader(dataset: CoNLLDataset, batch_size: int, num_workers: int = 1):
-    return DataLoader(dataset=dataset, batch_size=batch_size, collate_fn=dataset.data_collator, num_workers=num_workers)
