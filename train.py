@@ -21,9 +21,12 @@ def seed_everything(seed: int):
     set_seed(seed)
 
 
-def compute_metrics(predictions, labels, id_to_label, detailed_output=False):
+def compute_metrics(predictions, labels, id_to_label, detailed_output=False, viterbi_algorithm=True):
+    predictions = predictions.detach().numpy()
     metric = load_metric("seqeval")
-    predictions = np.argmax(predictions, axis=2)
+    if not viterbi_algorithm:
+        predictions = np.argmax(predictions, axis=2)
+        labels = labels.detach().numpy()
 
     # Remove ignored index (special tokens)
     true_predictions = [
@@ -48,15 +51,20 @@ def compute_metrics(predictions, labels, id_to_label, detailed_output=False):
         }
 
 
-def train(model, dataloader, epochs, lr=1e-5, optimizer=None):
+def train(
+        model,
+        dataloader,
+        epochs: int = 5,
+        lr: float = 1e-5,
+        betas: tuple = (0.9, 0.95),
+        clip_gradients: bool = True,
+        grad_norm_clip: float = 1,
+
+) -> None:
     seed_everything(1007)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
-
-    if optimizer is not None:
-        optimizer = optimizer(model.parameters(), lr=lr)
-    else:
-        optimizer = AdamW(model.parameters(), lr=lr)
+    optimizer = AdamW(model.parameters(), lr=lr, betas=betas)
 
     for epoch in range(epochs):
         average_loss = 0
@@ -77,6 +85,8 @@ def train(model, dataloader, epochs, lr=1e-5, optimizer=None):
 
             optimizer.zero_grad()
             loss.backward()
+            if clip_gradients:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_norm_clip)
             optimizer.step()
             pbar.set_description(f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
 
