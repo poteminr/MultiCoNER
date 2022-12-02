@@ -10,7 +10,7 @@ import os
 import random
 from tqdm import tqdm
 from typing import Optional
-from options import train_options
+from utils.options import train_options
 
 
 class TrainerConfig:
@@ -63,17 +63,16 @@ class Trainer:
                     result = model(input_ids, labels, attention_mask)
                     loss, output = result['loss'], result['logits']
 
-                average_loss += loss.item()
-
                 optimizer.zero_grad()
                 loss.backward()
                 if self.config.clip_gradients:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), self.config.clip_gradients)
                 optimizer.step()
+
                 metrics = self.compute_metrics(predictions=output, labels=labels, detailed_output=False)
-                f1 = metrics['f1']
-                average_f1 += f1
-                pbar.set_description(f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {f1:.8f}.")
+                average_f1 += metrics['f1']
+                average_loss += loss.item()
+                pbar.set_description(f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {metrics['f1']:.8f}.")
 
             average_loss /= len(train_loader)
             average_f1 /= len(train_loader)
@@ -85,7 +84,6 @@ class Trainer:
             predictions = predictions.detach().numpy()
             predictions = np.argmax(predictions, axis=2)
 
-        # Remove ignored index (special tokens)
         true_predictions = [
             [self.id_to_label[p] for (p, l) in zip(prediction, label) if l != self.label_pad_token_id]
             for prediction, label in zip(predictions, labels)
@@ -109,7 +107,6 @@ class Trainer:
 
     @staticmethod
     def seed_everything(seed: int):
-        """Seeds and fixes every possible random state."""
         random.seed(seed)
         os.environ['PYTHONHASHSEED'] = str(seed)
         np.random.seed(seed)
@@ -122,7 +119,11 @@ class Trainer:
 if __name__ == "__main__":
     arguments = train_options()
     dataset = CoNLLDataset(file_path='train_dev/uk-train.conll', viterbi_algorithm=arguments.viterbi)
-    baseline_model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id, viterbi_algorithm=arguments.viterbi)
+    baseline_model = BaselineModel(
+        encoder_model=dataset.encoder_model,
+        label_to_id=dataset.label_to_id,
+        viterbi_algorithm=arguments.viterbi
+    )
     config = TrainerConfig()
     trainer = Trainer(baseline_model, train_dataset=dataset, test_dataset=None, config=config)
     trainer.train()

@@ -5,7 +5,6 @@ from transformers import AutoTokenizer
 from log import logger
 from utils.reader_utils import get_ner_reader
 from utils.tagset import get_tagset
-from typing import Optional
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -41,10 +40,7 @@ class CoNLLDataset(Dataset):
         self.read_data(file_path)
 
     def get_target_size(self):
-        if self.label_pad_token_id == -100:
-            return len(set(self.label_to_id.values())) + 1  # I think it should be removed
-        else:
-            return len(set(self.label_to_id.values()))
+        return len(set(self.label_to_id.values()))
 
     def get_target_vocab(self):
         return self.label_to_id
@@ -77,20 +73,16 @@ class CoNLLDataset(Dataset):
         logger.info('Finished reading {:d} instances from file {}'.format(len(self.instances), dataset_name))
 
     # function from huggingface Token Classification ipynb
+    # Set label for all tokens and -100 for padding and specail tokens
     def tokenize_and_align_labels(self, tokenized_inputs, tags, label_all_tokens=True):
         previous_word_idx = None
         label_ids = []
         for word_idx in tokenized_inputs.word_ids():
-            # Special tokens have a word id that is None. We set the label to -100 so they are automatically
-            # ignored in the loss function.
             if word_idx is None:
                 label_ids.append(self.label_pad_token_id)
 
-            # We set the label for the first token of each word.
             elif word_idx != previous_word_idx:
                 label_ids.append(self.label_to_id[self.typos_correction(tags[word_idx])])
-            # For the other tokens in a word, we set the label to either the current label or -100, depending on
-            # the label_all_tokens flag.
             else:
                 label_ids.append(self.label_to_id[self.typos_correction(
                     tags[word_idx])] if label_all_tokens else self.label_pad_token_id)
