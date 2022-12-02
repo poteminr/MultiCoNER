@@ -37,34 +37,6 @@ class Trainer:
         self.label_pad_token_id = self.train_dataset.label_pad_token_id
         self.metric = load_metric("seqeval")
 
-    def compute_metrics(self, predictions, labels, id_to_label, detailed_output=False):
-        predictions = predictions.detach().numpy()
-        if not self.viterbi_algorithm:
-            predictions = np.argmax(predictions, axis=2)
-            labels = labels.detach().numpy()
-
-        # Remove ignored index (special tokens)
-        true_predictions = [
-            [id_to_label[p] for (p, l) in zip(prediction, label) if l != self.label_pad_token_id]
-            for prediction, label in zip(predictions, labels)
-        ]
-
-        true_labels = [
-            [id_to_label[l] for (p, l) in zip(prediction, label) if l != self.label_pad_token_id]
-            for prediction, label in zip(predictions, labels)
-        ]
-
-        results = self.metric.compute(predictions=true_predictions, references=true_labels)
-        if detailed_output:
-            return results
-        else:
-            return {
-                "precision": results["overall_precision"],
-                "recall": results["overall_recall"],
-                "f1": results["overall_f1"],
-                "accuracy": results["overall_accuracy"],
-            }
-
     def train(self):
         self.seed_everything(1007)
         model = self.model.to(self.device)
@@ -94,6 +66,35 @@ class Trainer:
             metrics = self.compute_metrics(output, labels, self.train_dataset.label_to_id)
             average_loss /= len(train_loader)
             print(average_loss, metrics)
+
+    def compute_metrics(self, predictions, labels, id_to_label, detailed_output=False):
+        predictions = predictions.detach().numpy()
+        if not self.viterbi_algorithm:
+            predictions = np.argmax(predictions, axis=2)
+            labels = labels.detach().numpy()
+
+        # Remove ignored index (special tokens)
+        true_predictions = [
+            [id_to_label[p] for (p, l) in zip(prediction, label) if l != self.label_pad_token_id]
+            for prediction, label in zip(predictions, labels)
+        ]
+
+        true_labels = [
+            [id_to_label[l] for (p, l) in zip(prediction, label) if l != self.label_pad_token_id]
+            for prediction, label in zip(predictions, labels)
+        ]
+
+        results = self.metric.compute(predictions=true_predictions, references=true_labels)
+        if detailed_output:
+            return results
+        else:
+            return {
+                "precision": results["overall_precision"],
+                "recall": results["overall_recall"],
+                "f1": results["overall_f1"],
+                "accuracy": results["overall_accuracy"],
+            }
+
     @staticmethod
     def seed_everything(seed: int):
         """Seeds and fixes every possible random state."""
@@ -106,7 +107,7 @@ class Trainer:
         set_seed(seed)
 
 # if __name__ == "__main__":
-    # dataset = CoNLLDataset('train_dev/uk-train.conll', label_pad_token_id=None)
-    # baseline_model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id)
-    # train_loader = get_dataloader(dataset=dataset, batch_size=32, num_workers=10)
-    # train(model=baseline_model, dataloader=train_loader, epochs=10)
+# dataset = CoNLLDataset('train_dev/uk-train.conll', label_pad_token_id=None)
+# baseline_model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id)
+# train_loader = get_dataloader(dataset=dataset, batch_size=32, num_workers=10)
+# train(model=baseline_model, dataloader=train_loader, epochs=10)
