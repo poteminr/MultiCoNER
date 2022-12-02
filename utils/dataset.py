@@ -1,11 +1,11 @@
 import os
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from transformers import AutoTokenizer
 from log import logger
 from utils.reader_utils import get_ner_reader
 from utils.tagset import get_tagset
-
+from typing import Optional
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -15,7 +15,7 @@ class CoNLLDataset(Dataset):
                  max_instances: int = -1,
                  max_length: int = 50,
                  encoder_model: str = 'cointegrated/rubert-tiny2',
-                 label_pad_token_id: int | None = -100
+                 label_pad_token_id: Optional[int] = -100
                  ):
 
         self.max_instances = max_instances
