@@ -11,6 +11,7 @@ import random
 from tqdm import tqdm
 from typing import Optional
 from utils.options import train_options
+import wandb
 
 
 class TrainerConfig:
@@ -76,12 +77,14 @@ class Trainer:
 
             average_loss /= len(train_loader)
             average_f1 /= len(train_loader)
+            wandb.log(({'loss': average_loss, 'f1': average_f1}))
             print(average_loss, average_f1)
+        wandb.finish()
 
     def compute_metrics(self, predictions, labels, detailed_output=False):
         labels = labels.detach().cpu().numpy()
         if not self.viterbi_algorithm:
-            predictions = predictions.detach().numpy()
+            predictions = predictions.detach().cpu().numpy()
             predictions = np.argmax(predictions, axis=2)
 
         true_predictions = [
@@ -116,14 +119,22 @@ class Trainer:
         set_seed(seed)
 
 
+def train_config_to_dict(train_config: TrainerConfig):
+    return dict((name, getattr(train_config, name)) for name in dir(train_config) if not name.startswith('__'))
+
+
 if __name__ == "__main__":
+    wandb.init(project="MultiCoNER")
     arguments = train_options()
-    dataset = CoNLLDataset(file_path='train_dev/uk-train.conll', viterbi_algorithm=arguments.viterbi)
+
+    dataset = CoNLLDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi)
     baseline_model = BaselineModel(
         encoder_model=dataset.encoder_model,
         label_to_id=dataset.label_to_id,
         viterbi_algorithm=arguments.viterbi
     )
     config = TrainerConfig()
+    wandb.config = train_config_to_dict(config)
+
     trainer = Trainer(baseline_model, train_dataset=dataset, test_dataset=None, config=config)
     trainer.train()
