@@ -15,7 +15,8 @@ class CoNLLDataset(Dataset):
                  max_instances: int = -1,
                  max_length: int = 50,
                  encoder_model: str = 'cointegrated/rubert-tiny2',
-                 label_pad_token_id: Optional[int] = -100
+                 viterbi_algorithm: bool = True,
+                 label_pad_token_id: int = -100
                  ):
 
         self.max_instances = max_instances
@@ -29,7 +30,11 @@ class CoNLLDataset(Dataset):
         self.pad_token = self.tokenizer.special_tokens_map['pad_token']
         self.pad_token_id = self.tokenizer.get_vocab()[self.pad_token]
         self.sep_token = self.tokenizer.special_tokens_map['sep_token']
-        self.label_pad_token_id = self.pad_token_id if label_pad_token_id is None else label_pad_token_id
+
+        if viterbi_algorithm:
+            self.label_pad_token_id = self.pad_token_id
+        else:
+            self.label_pad_token_id = label_pad_token_id
 
         self.instances = []
         self.sentences_words = []

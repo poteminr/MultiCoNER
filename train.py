@@ -10,12 +10,13 @@ import os
 import random
 from tqdm import tqdm
 from typing import Optional
+from options import train_options
 
 
 class TrainerConfig:
     epochs = 10
     lr = 1e-5
-    batch_size = 32
+    batch_size = 64
     betas = (0.9, 0.95)
     clip_gradients = True
     grad_norm_clip = 1.0
@@ -95,7 +96,7 @@ class Trainer:
             for prediction, label in zip(predictions, labels)
         ]
 
-        results = self.metric.compute(predictions=true_predictions, references=true_labels)
+        results = self.metric.compute(predictions=true_predictions, references=true_labels, zero_division=0)
         if detailed_output:
             return results
         else:
@@ -119,8 +120,9 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    dataset = CoNLLDataset(file_path='train_dev/uk-train.conll')
-    baseline_model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id, viterbi_algorithm=False)
+    arguments = train_options()
+    dataset = CoNLLDataset(file_path='train_dev/uk-train.conll', viterbi_algorithm=arguments.viterbi)
+    baseline_model = BaselineModel(encoder_model=dataset.encoder_model, label_to_id=dataset.label_to_id, viterbi_algorithm=arguments.viterbi)
     config = TrainerConfig()
     trainer = Trainer(baseline_model, train_dataset=dataset, test_dataset=None, config=config)
     trainer.train()
