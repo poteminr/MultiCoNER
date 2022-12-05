@@ -29,23 +29,31 @@ class TrainerConfig:
 
 
 class Trainer:
-    def __init__(self, model, train_dataset: CoNLLDataset, test_dataset: Optional[CoNLLDataset], config: TrainerConfig):
+    def __init__(self, model, config: TrainerConfig, train_dataset: CoNLLDataset,
+                 val_dataset: Optional[CoNLLDataset] = None):
         self.model = model
         self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
+        self.val_dataset = val_dataset
         self.config = config
         self.id_to_label = self.train_dataset.id_to_label
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.viterbi_algorithm = model.viterbi_algorithm
         self.label_pad_token_id = self.train_dataset.label_pad_token_id
         self.metric = load("seqeval")
+        self.seed = 1007
+
+    def create_dataloader(self, dataset: CoNLLDataset):
+        return DataLoader(dataset=dataset, batch_size=self.config.batch_size,
+                          collate_fn=dataset.data_collator, num_workers=self.config.num_workers)
 
     def train(self):
-        self.seed_everything(1007)
+        self.seed_everything(self.seed)
         model = self.model.to(self.device)
         optimizer = AdamW(model.parameters(), lr=self.config.lr, betas=self.config.betas)
-        train_loader = DataLoader(dataset=self.train_dataset, batch_size=self.config.batch_size,
-                                  collate_fn=self.train_dataset.data_collator, num_workers=self.config.num_workers)
+        train_loader = self.create_dataloader(self.train_dataset)
+
+        if self.val_dataset is not None:
+            val_loader = self.create_dataloader(self.train_dataset)
 
         for epoch in range(self.config.epochs):
             average_loss = 0
@@ -73,7 +81,8 @@ class Trainer:
                 metrics = self.compute_metrics(predictions=output, labels=labels, detailed_output=False)
                 average_f1 += metrics['f1']
                 average_loss += loss.item()
-                pbar.set_description(f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {metrics['f1']:.8f}.")
+                pbar.set_description(
+                    f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {metrics['f1']:.8f}.")
 
             average_loss /= len(train_loader)
             average_f1 /= len(train_loader)
@@ -124,7 +133,6 @@ def train_config_to_dict(train_config: TrainerConfig):
 
 
 if __name__ == "__main__":
-    wandb.init(project="MultiCoNER")
     arguments = train_options()
 
     dataset = CoNLLDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi)
@@ -134,7 +142,7 @@ if __name__ == "__main__":
         viterbi_algorithm=arguments.viterbi
     )
     config = TrainerConfig()
-    wandb.config = train_config_to_dict(config)
+    wandb.init(project="MultiCoNER", config=train_config_to_dict(config))
 
     trainer = Trainer(baseline_model, train_dataset=dataset, test_dataset=None, config=config)
     trainer.train()
