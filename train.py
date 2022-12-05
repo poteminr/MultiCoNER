@@ -46,48 +46,59 @@ class Trainer:
         return DataLoader(dataset=dataset, batch_size=self.config.batch_size,
                           collate_fn=dataset.data_collator, num_workers=self.config.num_workers)
 
-    def train(self):
-        self.seed_everything(self.seed)
-        model = self.model.to(self.device)
-        optimizer = AdamW(model.parameters(), lr=self.config.lr, betas=self.config.betas)
-        train_loader = self.create_dataloader(self.train_dataset)
-
-        if self.val_dataset is not None:
-            val_loader = self.create_dataloader(self.train_dataset)
-
-        for epoch in range(self.config.epochs):
-            average_loss = 0
-            average_f1 = 0
+    def perform_epoch(self, epoch, model, optimizer, loader, train_mode):
+        average_loss = 0
+        average_f1 = 0
+        if train_mode:
             model.train()
-            pbar = tqdm(enumerate(train_loader), total=len(train_loader))
-            for it, (input_ids, labels, attention_mask) in pbar:
-                input_ids = input_ids.to(self.device)
-                labels = labels.to(self.device)
-                attention_mask = attention_mask.to(self.device)
+        else:
+            model.eval()
 
-                if self.viterbi_algorithm:
-                    result = model(input_ids, labels, attention_mask)
-                    loss, output = result[0], result[1]
-                else:
-                    result = model(input_ids, labels, attention_mask)
-                    loss, output = result['loss'], result['logits']
+        pbar = tqdm(enumerate(loader), total=len(loader))
+        for it, (input_ids, labels, attention_mask) in pbar:
+            input_ids = input_ids.to(self.device)
+            labels = labels.to(self.device)
+            attention_mask = attention_mask.to(self.device)
 
+            if self.viterbi_algorithm:
+                result = model(input_ids, labels, attention_mask)
+                loss, output = result[0], result[1]
+            else:
+                result = model(input_ids, labels, attention_mask)
+                loss, output = result['loss'], result['logits']
+
+            if train_mode:
                 optimizer.zero_grad()
                 loss.backward()
                 if self.config.clip_gradients:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), self.config.clip_gradients)
                 optimizer.step()
 
-                metrics = self.compute_metrics(predictions=output, labels=labels, detailed_output=False)
-                average_f1 += metrics['f1']
-                average_loss += loss.item()
-                pbar.set_description(
-                    f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {metrics['f1']:.8f}.")
+            metrics = self.compute_metrics(predictions=output, labels=labels, detailed_output=False)
+            average_loss += loss.item()
+            average_f1 += metrics['f1']
 
-            average_loss /= len(train_loader)
-            average_f1 /= len(train_loader)
-            wandb.log(({'loss': average_loss, 'f1': average_f1}))
-            print(average_loss, average_f1)
+            pbar.set_description(
+                f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {metrics['f1']:.8f}.")
+
+        average_loss /= len(loader)
+        average_f1 /= len(loader)
+        wandb.log(({'loss': average_loss, 'f1': average_f1}))
+        print(average_loss, average_f1)
+
+    def train(self):
+        self.seed_everything(self.seed)
+        model = self.model.to(self.device)
+        optimizer = AdamW(model.parameters(), lr=self.config.lr, betas=self.config.betas)
+        train_loader = self.create_dataloader(self.train_dataset)
+        if self.val_dataset is not None:
+            val_loader = self.create_dataloader(self.val_dataset)
+
+        for epoch in range(self.config.epochs):
+            self.perform_epoch(epoch, model, optimizer, train_loader, train_mode=True)
+            if self.val_dataset is not None:
+                self.perform_epoch(epoch, model, optimizer, val_loader, train_mode=False)
+
         wandb.finish()
 
     def compute_metrics(self, predictions, labels, detailed_output=False):
@@ -144,5 +155,5 @@ if __name__ == "__main__":
     config = TrainerConfig()
     wandb.init(project="MultiCoNER", config=train_config_to_dict(config))
 
-    trainer = Trainer(baseline_model, train_dataset=dataset, test_dataset=None, config=config)
+    trainer = Trainer(model=baseline_model, config=config, train_dataset=dataset)
     trainer.train()
