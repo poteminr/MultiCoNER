@@ -46,13 +46,15 @@ class Trainer:
         return DataLoader(dataset=dataset, batch_size=self.config.batch_size,
                           collate_fn=dataset.data_collator, num_workers=self.config.num_workers)
 
-    def perform_epoch(self, epoch, model, optimizer, loader, train_mode):
+    def perform_epoch(self, epoch, model, optimizer, loader, train_mode: bool):
         average_loss = 0
         average_f1 = 0
         if train_mode:
             model.train()
+            text = 'train/'
         else:
             model.eval()
+            text = 'val/'
 
         pbar = tqdm(enumerate(loader), total=len(loader))
         for it, (input_ids, labels, attention_mask) in pbar:
@@ -83,8 +85,8 @@ class Trainer:
 
         average_loss /= len(loader)
         average_f1 /= len(loader)
-        wandb.log(({'loss': average_loss, 'f1': average_f1}))
-        print(average_loss, average_f1)
+        wandb.log(({f'{text}loss': average_loss, f'{text}f1': average_f1}))
+        print(f"{text}_loss:{average_loss}", f"{text}_f1: {average_f1}")
 
     def train(self):
         self.seed_everything(self.seed)
