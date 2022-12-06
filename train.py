@@ -51,10 +51,12 @@ class Trainer:
         average_f1 = 0
         if train_mode:
             model.train()
-            text = 'train/'
+            text = 'train'
+            newline = ''
         else:
             model.eval()
-            text = 'val/'
+            text = 'val'
+            newline = '\n'
 
         pbar = tqdm(enumerate(loader), total=len(loader))
         for it, (input_ids, labels, attention_mask) in pbar:
@@ -81,16 +83,21 @@ class Trainer:
             average_f1 += metrics['f1']
 
             pbar.set_description(
-                f"epoch {epoch + 1} iter {it}: train loss {loss.item():.5f}. f1 {metrics['f1']:.8f}.")
+                f"epoch {epoch + 1} iter {it} | {text}_loss: {loss.item():.5f}. {text}_f1: {metrics['f1']:.8f}.")
 
         average_loss /= len(loader)
         average_f1 /= len(loader)
-        wandb.log(({f'{text}loss': average_loss, f'{text}f1': average_f1}))
-        print(f"{text}_loss:{average_loss}", f"{text}_f1: {average_f1}")
+        wandb.log({
+            f'{text}/loss': average_loss,
+            f'{text}/f1': average_f1,
+        },
+            step=epoch)
+        print(f"{text}_loss: {average_loss}", f"{text}_f1: {average_f1}{newline}")
 
     def train(self):
         self.seed_everything(self.seed)
         model = self.model.to(self.device)
+        wandb.watch(model)
         optimizer = AdamW(model.parameters(), lr=self.config.lr, betas=self.config.betas)
         train_loader = self.create_dataloader(self.train_dataset)
         if self.val_dataset is not None:
@@ -155,7 +162,7 @@ if __name__ == "__main__":
         label_to_id=train_dataset.label_to_id,
         viterbi_algorithm=arguments.viterbi
     )
-    config = TrainerConfig()
+    config = TrainerConfig(viterbi_algorithm=arguments.viterbi)
     wandb.init(project="MultiCoNER", config=train_config_to_dict(config))
 
     trainer = Trainer(model=baseline_model, config=config, train_dataset=train_dataset, val_dataset=val_dataset)
