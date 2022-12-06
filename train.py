@@ -148,14 +148,15 @@ def train_config_to_dict(train_config: TrainerConfig):
 if __name__ == "__main__":
     arguments = train_options()
 
-    dataset = CoNLLDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi)
+    train_dataset = CoNLLDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi)
+    val_dataset = CoNLLDataset(file_path=arguments.file_path.replace('-train.', '-dev.'), viterbi_algorithm=arguments.viterbi)
     baseline_model = BaselineModel(
-        encoder_model=dataset.encoder_model,
-        label_to_id=dataset.label_to_id,
+        encoder_model=train_dataset.encoder_model,
+        label_to_id=train_dataset.label_to_id,
         viterbi_algorithm=arguments.viterbi
     )
     config = TrainerConfig()
     wandb.init(project="MultiCoNER", config=train_config_to_dict(config))
 
-    trainer = Trainer(model=baseline_model, config=config, train_dataset=dataset)
+    trainer = Trainer(model=baseline_model, config=config, train_dataset=train_dataset, val_dataset=val_dataset)
     trainer.train()
