@@ -91,7 +91,7 @@ class Trainer:
             f'{text}/loss': average_loss,
             f'{text}/f1': average_f1,
         },
-            step=epoch)
+            step=epoch + 1)
         print(f"{text}_loss: {average_loss}", f"{text}_f1: {average_f1}{newline}")
 
     def train(self):
@@ -156,7 +156,8 @@ if __name__ == "__main__":
     arguments = train_options()
 
     train_dataset = CoNLLDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi)
-    val_dataset = CoNLLDataset(file_path=arguments.file_path.replace('-train.', '-dev.'), viterbi_algorithm=arguments.viterbi)
+    val_dataset = CoNLLDataset(file_path=arguments.file_path.replace('-train.', '-dev.'),
+                               viterbi_algorithm=arguments.viterbi)
     baseline_model = BaselineModel(
         encoder_model=train_dataset.encoder_model,
         label_to_id=train_dataset.label_to_id,

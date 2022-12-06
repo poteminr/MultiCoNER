@@ -30,7 +30,8 @@ class BaselineModel(nn.Module):
         batch_size = input_ids.size(0)
         if self.viterbi_algorithm:
             embedded_text_input = self.encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
-            embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))
+            # embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))
+            embedded_text_input = self.dropout(embedded_text_input)
             token_scores = self.feedforward(embedded_text_input)
             loss, output_tags = self.apply_crf(token_scores, labels, attention_mask, batch_size=batch_size)
             return loss, output_tags, token_scores

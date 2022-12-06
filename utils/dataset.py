@@ -73,7 +73,7 @@ class CoNLLDataset(Dataset):
         logger.info('Finished reading {:d} instances from file {}'.format(len(self.instances), dataset_name))
 
     # function from huggingface Token Classification ipynb
-    # Set label for all tokens and -100 for padding and specail tokens
+    # Set label for all tokens and -100 for padding and special tokens
     def tokenize_and_align_labels(self, tokenized_inputs, tags, label_all_tokens=True):
         previous_word_idx = None
         label_ids = []
