@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from utils.dataset import CoNLLDataset
 from transformers import set_seed
 from evaluate import load
-from models.baseline_model import Bert, BertCRF
+from models.models import Bert, BertCRF
 from torch.optim import AdamW
 import numpy as np
 import os
