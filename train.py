@@ -1,5 +1,5 @@
 from utils.options import train_options
-from models.models import Bert, BertCRF, BertBiLstmCRF
+from models.baseline_models import Bert, BertCRF, BertBiLstmCRF
 from utils.dataset import CoNLLDataset
 from trainer import TrainerConfig, Trainer
 import wandb
