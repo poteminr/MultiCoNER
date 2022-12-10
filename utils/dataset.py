@@ -2,9 +2,12 @@ import os
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
+import numpy as np
 from log import logger
+import warnings
 from utils.reader_utils import get_ner_reader
 from utils.tagset import get_tagset
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -117,3 +120,97 @@ class CoNLLDataset(Dataset):
             attention_masks_tensor[i, :seq_len] = attention_masks[i]
 
         return input_ids_tensor, labels_tensor, attention_masks_tensor
+
+
+class SiameseDataset(CoNLLDataset):
+    def __init__(self,
+                 file_path: str,
+                 max_instances: int = -1,
+                 max_length: int = 50,
+                 encoder_model: str = 'cointegrated/rubert-tiny2',
+                 viterbi_algorithm: bool = True,
+                 label_pad_token_id: int = -100,
+                 max_pairs: int = 10000,
+                 identical_entities_prob: float = 0.3
+                 ):
+        super(SiameseDataset, self).__init__(file_path, max_instances, max_length,
+                                             encoder_model, viterbi_algorithm, label_pad_token_id)
+
+        self.max_pairs = max_pairs
+        self.identical_entities_prob = identical_entities_prob
+
+        self.paired_instances = []
+        self.entities_in_data = {}
+        self.parse_entities_in_data()
+        self.entities = list(self.entities_in_data.keys())
+        self.create_pairs()
+
+    def __getitem__(self, item):
+        return self.paired_instances[item]
+
+    def __len__(self):
+        return len(self.paired_instances)
+
+    def parse_entities_in_data(self):
+        for sample_index, (input_ids, labels, _) in enumerate(self.instances):
+            previous_label = ''
+            for idx, label_id in enumerate(labels):
+                label = self.id_to_label[label_id.item()]
+                if label.startswith('B-') and label != previous_label:
+                    if label not in self.entities_in_data.keys():
+                        self.entities_in_data[label] = []
+                    self.entities_in_data[label].append((sample_index, idx))
+                previous_label = label
+
+    def create_pairs(self):
+        used_pairs = set()
+        for _ in range(self.max_pairs):
+            first_entity = np.random.choice(self.entities)
+            idx = self.entities.index(first_entity)
+            if np.random.random() > self.identical_entities_prob:
+                second_entity = np.random.choice(self.entities[:idx] + self.entities[idx + 1:])
+            else:
+                second_entity = first_entity
+
+            first_sample, second_sample = self.choice_two_pairs(first_entity, second_entity)
+
+            if (first_sample, second_sample) in used_pairs:
+                for _ in range(100):
+                    first_sample, second_sample = self.choice_two_pairs(first_entity, second_entity)
+
+            if (first_sample, second_sample) in used_pairs or first_sample == second_sample:
+                warning = f'The pair {first_entity}-{second_entity} is not found.'
+                warnings.warn(warning)
+            else:
+                first_input_ids, first_token_mask, first_attention_mask = self.parse_sample(first_entity, first_sample)
+                second_input_ids, second_token_mask, second_attention_mask = self.parse_sample(second_entity, second_sample)
+
+                pair_target = float(first_entity == second_entity)
+                self.paired_instances.append((
+                    [first_input_ids, second_input_ids],
+                    [first_token_mask, second_token_mask],
+                    [first_attention_mask, second_attention_mask], pair_target))
+
+                used_pairs.add((first_sample, second_sample))
+                used_pairs.add((second_sample, first_sample))
+        logger.info('Finished creating {:d} pairs.'.format(len(self.paired_instances)))
+
+    def choice_two_pairs(self, first_entity, second_entity):
+        rng = np.random.default_rng()
+        first_sample = tuple(rng.choice(self.entities_in_data[first_entity]))
+        second_sample = tuple(rng.choice(self.entities_in_data[second_entity]))
+        for _ in range(100):
+            second_sample = tuple(rng.choice(self.entities_in_data[second_entity]))
+            if first_sample != second_sample:
+                break
+        return first_sample, second_sample
+
+    def parse_sample(self, entity, sample):
+        sample_index, start_idx = sample
+        input_ids, labels, attention_mask = self.instances[sample_index]
+        token_mask = np.zeros_like(labels)
+        for idx, label in enumerate(labels[start_idx:]):
+            if self.id_to_label[label.item()] not in [entity, entity.replace('B', 'I')]:
+                break
+            token_mask[start_idx+idx] = 1
+        return input_ids, token_mask, attention_mask
