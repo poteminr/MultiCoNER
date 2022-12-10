@@ -130,16 +130,18 @@ class SiameseDataset(CoNLLDataset):
                  encoder_model: str = 'cointegrated/rubert-tiny2',
                  viterbi_algorithm: bool = True,
                  label_pad_token_id: int = -100,
-                 max_pairs: int = 10000,
-                 identical_entities_prob: float = 0.3
+                 max_pairs: int = 100,
+                 identical_entities_prob: float = 0.3,
+                 search_iterations: int = 100
                  ):
         super(SiameseDataset, self).__init__(file_path, max_instances, max_length,
                                              encoder_model, viterbi_algorithm, label_pad_token_id)
 
         self.max_pairs = max_pairs
         self.identical_entities_prob = identical_entities_prob
-
+        self.search_iterations = search_iterations
         self.paired_instances = []
+        self.pairs_targets = []
         self.entities_in_data = {}
         self.parse_entities_in_data()
         self.entities = list(self.entities_in_data.keys())
@@ -163,6 +165,7 @@ class SiameseDataset(CoNLLDataset):
                 previous_label = label
 
     def create_pairs(self):
+        logger.info(f'Creating pairs. Max pairs: {self.max_pairs}')
         used_pairs = set()
         for _ in range(self.max_pairs):
             first_entity = np.random.choice(self.entities)
@@ -175,7 +178,7 @@ class SiameseDataset(CoNLLDataset):
             first_sample, second_sample = self.choice_two_pairs(first_entity, second_entity)
 
             if (first_sample, second_sample) in used_pairs:
-                for _ in range(100):
+                for _ in range(self.search_iterations):
                     first_sample, second_sample = self.choice_two_pairs(first_entity, second_entity)
 
             if (first_sample, second_sample) in used_pairs or first_sample == second_sample:
@@ -186,10 +189,12 @@ class SiameseDataset(CoNLLDataset):
                 second_input_ids, second_token_mask, second_attention_mask = self.parse_sample(second_entity, second_sample)
 
                 pair_target = float(first_entity == second_entity)
+                self.pairs_targets.append(pair_target)
                 self.paired_instances.append((
                     [first_input_ids, second_input_ids],
                     [first_token_mask, second_token_mask],
-                    [first_attention_mask, second_attention_mask], pair_target))
+                    [first_attention_mask, second_attention_mask], pair_target
+                ))
 
                 used_pairs.add((first_sample, second_sample))
                 used_pairs.add((second_sample, first_sample))
@@ -199,7 +204,7 @@ class SiameseDataset(CoNLLDataset):
         rng = np.random.default_rng()
         first_sample = tuple(rng.choice(self.entities_in_data[first_entity]))
         second_sample = tuple(rng.choice(self.entities_in_data[second_entity]))
-        for _ in range(100):
+        for _ in range(self.search_iterations):
             second_sample = tuple(rng.choice(self.entities_in_data[second_entity]))
             if first_sample != second_sample:
                 break
