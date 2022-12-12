@@ -140,9 +140,11 @@ class SiameseDataset(CoNLLDataset):
         self.max_pairs = max_pairs
         self.identical_entities_prob = identical_entities_prob
         self.search_iterations = search_iterations
+
         self.paired_instances = []
         self.pairs_targets = []
         self.entities_in_data = {}
+
         self.parse_entities_in_data()
         self.entities = list(self.entities_in_data.keys())
         self.create_pairs()
