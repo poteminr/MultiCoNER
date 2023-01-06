@@ -12,10 +12,10 @@ def train_config_to_dict(train_config: TrainerConfig):
 if __name__ == "__main__":
     arguments = train_options()
     train_dataset = CoNLLDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi,
-                                 encoder_model='Babelscape/wikineural-multilingual-ner')
+                                 encoder_model=arguments.encoder_model)
     val_dataset = CoNLLDataset(file_path=arguments.file_path.replace('-train.', '-dev.'),
                                viterbi_algorithm=arguments.viterbi,
-                               encoder_model='Babelscape/wikineural-multilingual-ner')
+                               encoder_model=arguments.encoder_model)
 
     if arguments.viterbi:
         model_class = BertCRF

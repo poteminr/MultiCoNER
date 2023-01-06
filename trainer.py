@@ -35,7 +35,7 @@ class Trainer:
         self.config = config
         self.id_to_label = self.train_dataset.id_to_label
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.viterbi_algorithm = model.viterbi_algorithm
+        self.viterbi_algorithm = self.config.viterbi_algorithm
         self.label_pad_token_id = self.train_dataset.label_pad_token_id
         self.metric = load("seqeval")
         self.seed = 1007
