@@ -4,6 +4,22 @@ from transformers import AutoModelForTokenClassification, AutoModel
 from torchcrf import CRF
 
 
+class Bert(nn.Module):
+    def __init__(self,
+                 encoder_model: str,
+                 label_to_id: dict,
+                 ):
+        super(Bert, self).__init__()
+        self.tag_to_id = label_to_id
+        self.id_to_tag = {v: k for k, v in self.tag_to_id.items()}
+        self.target_size = len(self.id_to_tag)
+        self.encoder = AutoModelForTokenClassification.from_pretrained(encoder_model, num_labels=self.target_size)
+
+    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor):
+        output = self.encoder(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=True)
+        return output
+
+
 class BertCRF(nn.Module):
     def __init__(self,
                  encoder_model: str,
@@ -32,22 +48,6 @@ class BertCRF(nn.Module):
         loss = -self.crf(emissions=token_scores, tags=labels, mask=attention_mask) / batch_size
         tags = self.crf.decode(emissions=token_scores, mask=attention_mask)
         return loss, tags
-
-
-class Bert(nn.Module):
-    def __init__(self,
-                 encoder_model: str,
-                 label_to_id: dict,
-                 ):
-        super(Bert, self).__init__()
-        self.tag_to_id = label_to_id
-        self.id_to_tag = {v: k for k, v in self.tag_to_id.items()}
-        self.target_size = len(self.id_to_tag)
-        self.encoder = AutoModelForTokenClassification.from_pretrained(encoder_model, num_labels=self.target_size)
-
-    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor):
-        output = self.encoder(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=True)
-        return output
 
 
 class BertBiLstmCRF(nn.Module):
