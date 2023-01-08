@@ -100,10 +100,7 @@ class CoNLLDataset(Dataset):
 
         return label
 
-    def data_collator(self, batch):
-        batch_ = list(zip(*batch))
-        input_ids, labels, attention_masks = batch_[0], batch_[1], batch_[2]
-
+    def pad_instances(self, input_ids, labels, attention_masks):
         max_length_in_batch = max([len(token) for token in input_ids])
         input_ids_tensor = torch.empty(size=(len(input_ids), max_length_in_batch), dtype=torch.long).fill_(
             self.pad_token_id)
@@ -120,6 +117,11 @@ class CoNLLDataset(Dataset):
             attention_masks_tensor[i, :seq_len] = attention_masks[i]
 
         return input_ids_tensor, labels_tensor, attention_masks_tensor
+
+    def data_collator(self, batch):
+        batch_ = list(zip(*batch))
+        input_ids, labels, attention_masks = batch_[0], batch_[1], batch_[2]
+        return self.pad_instances(input_ids, labels, attention_masks)
 
 
 class SiameseDataset(CoNLLDataset):
@@ -143,6 +145,8 @@ class SiameseDataset(CoNLLDataset):
 
         self.paired_instances = []
         self.pairs_targets = []
+        self.first_instances = []
+        self.second_instances = []
         self.entities_in_data = {}
 
         self.parse_entities_in_data()
@@ -150,7 +154,7 @@ class SiameseDataset(CoNLLDataset):
         self.create_pairs()
 
     def __getitem__(self, item):
-        return self.paired_instances[item]
+        return self.first_instances[item], self.second_instances[item], self.pairs_targets[item]
 
     def __len__(self):
         return len(self.paired_instances)
@@ -197,6 +201,12 @@ class SiameseDataset(CoNLLDataset):
                     [first_token_mask, second_token_mask],
                     [first_attention_mask, second_attention_mask], pair_target
                 ))
+                self.first_instances.append(
+                    (first_input_ids, first_token_mask, first_attention_mask)
+                )
+                self.second_instances.append(
+                    (second_input_ids, second_token_mask, second_attention_mask)
+                )
 
                 used_pairs.add((first_sample, second_sample))
                 used_pairs.add((second_sample, first_sample))
@@ -215,9 +225,21 @@ class SiameseDataset(CoNLLDataset):
     def parse_sample(self, entity, sample):
         sample_index, start_idx = sample
         input_ids, labels, attention_mask = self.instances[sample_index]
-        token_mask = np.zeros_like(labels)
+        token_mask = torch.zeros_like(labels)
         for idx, label in enumerate(labels[start_idx:]):
             if self.id_to_label[label.item()] not in [entity, entity.replace('B', 'I')]:
                 break
             token_mask[start_idx+idx] = 1
         return input_ids, token_mask, attention_mask
+
+    def data_collator(self, batch):
+        batch_ = list(zip(*batch))
+        first_instances, second_instances, pairs_targets = batch_[0], batch_[1], batch_[2]
+        first_instances, second_instances = np.array(first_instances, dtype=object), np.array(second_instances, dtype=object)
+
+        first_input_ids, first_token_mask, first_attention_mask = first_instances[:, 0], first_instances[:, 1], first_instances[:, 2]
+        second_input_ids, second_token_mask, second_attention_mask = second_instances[:, 0], second_instances[:, 1], second_instances[:, 2]
+
+        first_padded_instances = self.pad_instances(first_input_ids, first_token_mask, first_attention_mask)
+        second_padded_instances = self.pad_instances(second_input_ids, second_token_mask, second_attention_mask)
+        return first_padded_instances, second_padded_instances, pairs_targets
