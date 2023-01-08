@@ -12,6 +12,18 @@ def distance_based_probability(x: torch.Tensor, y: torch.Tensor, margin: float =
     return p
 
 
+def masked_mean_pooling(data_tensor, mask, dim):
+    if dim < 0:
+        dim = len(data_tensor.shape) + dim
+
+    mask = mask.view(list(mask.shape) + [1] * (len(data_tensor.shape) - len(mask.shape)))
+    data_tensor = data_tensor.masked_fill(mask == 0, 0)
+
+    nominator = torch.sum(data_tensor, dim=dim)
+    denominator = torch.sum(mask.type(nominator.type()), dim=dim)
+    return nominator / denominator
+
+
 class Bert(nn.Module):
     def __init__(self,
                  encoder_model: str,
@@ -26,7 +38,7 @@ class Bert(nn.Module):
         self.encoder = AutoModel.from_pretrained(encoder_model, return_dict=True)
         self.dropout = nn.Dropout(dropout_rate)
 
-    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor):
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
         embedded_text_input = self.encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         embedded_text_input = self.dropout(embedded_text_input)
         return embedded_text_input
