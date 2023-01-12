@@ -8,7 +8,7 @@ def distance_based_probability(x: torch.Tensor, y: torch.Tensor, margin: float =
     x = nn.functional.normalize(x, dim=1)
     y = nn.functional.normalize(y, dim=1)
     euclidean_distance = torch.square(torch.sum(torch.square(x - y), dim=1, keepdim=True))
-    p = (1.0 + np.exp(-margin)) / (1.0 + np.exp(euclidean_distance) - margin)
+    p = (1.0 + np.exp(-margin)) / (1.0 + torch.exp(euclidean_distance) - margin)
     return p
 
 
