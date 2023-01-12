@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
-from utils.dataset import CoNLLDataset
+from utils.dataset import CoNLLDataset, SiameseDataset
+from models.siamese_model import distance_based_probability, masked_mean_pooling
 from transformers import set_seed
 from evaluate import load
 from torch.optim import AdamW
@@ -144,3 +145,73 @@ class Trainer:
         torch.cuda.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
         set_seed(seed)
+
+
+class ContrastiveTrainer(Trainer):
+    def __init__(self, model, config: TrainerConfig, train_dataset: SiameseDataset,
+                 val_dataset: Optional[SiameseDataset] = None):
+        super(ContrastiveTrainer, self).__init__(model, config, train_dataset, val_dataset)
+        self.loss_function = torch.nn.CrossEntropyLoss()
+
+    def perform_epoch(self, epoch, model, optimizer, loader, train_mode: bool):
+        average_loss = 0
+        average_accuracy = 0
+        if train_mode:
+            model.train()
+            text = 'train'
+            newline = ''
+        else:
+            model.eval()
+            text = 'val'
+            newline = '\n'
+
+        pbar = tqdm(enumerate(loader), total=len(loader))
+        for it, (first_padded_instances, second_padded_instances, pairs_targets) in pbar:
+            first_input_ids, first_token_mask, first_attention_mask = first_padded_instances
+            second_input_ids, second_token_mask, second_attention_mask = second_padded_instances
+
+            first_input_ids = first_input_ids.to(self.device)
+            first_token_mask = first_token_mask.to(self.device)
+            first_attention_mask = first_attention_mask.to(self.device)
+
+            second_input_ids = second_input_ids.to(self.device)
+            second_token_mask = second_token_mask.to(self.device)
+            second_attention_mask = second_attention_mask.to(self.device)
+
+            pairs_targets = pairs_targets.to(self.device)
+
+            first_embedded_text_input = model(first_input_ids, first_attention_mask)
+            second_embedded_text_input = model(second_input_ids, second_attention_mask)
+
+            first_pooled_embedding = masked_mean_pooling(first_embedded_text_input, first_token_mask, 1)
+            second_pooled_embedding = masked_mean_pooling(second_embedded_text_input, second_token_mask, 1)
+
+            probabilities = distance_based_probability(first_pooled_embedding, second_pooled_embedding).view(-1)
+            loss = self.loss_function(probabilities, pairs_targets)
+
+            if train_mode:
+                optimizer.zero_grad()
+                loss.backward()
+                if self.config.clip_gradients:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), self.config.clip_gradients)
+                optimizer.step()
+
+            accuracy = self.compute_accuracy(probabilities=probabilities, labels=pairs_targets)
+            average_loss += loss.item()
+            average_accuracy += accuracy
+
+            pbar.set_description(
+                f"epoch {epoch + 1} iter {it} | {text}_loss: {loss.item():.5f}. {text}_accuracy: {accuracy}.")
+
+        average_loss /= len(loader)
+        average_accuracy /= len(loader)
+        wandb.log({
+            f'{text}/loss': average_loss,
+            f'{text}/accuracy': average_accuracy,
+        },
+            step=epoch + 1)
+        print(f"{text}_loss: {average_loss}", f"{text}accuracy: {average_accuracy}{newline}")
+
+    @staticmethod
+    def compute_accuracy(probabilities, labels):
+        return (torch.sum(torch.round(probabilities) == labels) / labels.size(0)).item()
