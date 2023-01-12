@@ -194,7 +194,7 @@ class SiameseDataset(CoNLLDataset):
                 first_input_ids, first_token_mask, first_attention_mask = self.parse_sample(first_entity, first_sample)
                 second_input_ids, second_token_mask, second_attention_mask = self.parse_sample(second_entity, second_sample)
 
-                pair_target = float(first_entity == second_entity)
+                pair_target = int(first_entity == second_entity)
                 self.pairs_targets.append(pair_target)
                 self.paired_instances.append((
                     [first_input_ids, second_input_ids],
@@ -242,4 +242,5 @@ class SiameseDataset(CoNLLDataset):
 
         first_padded_instances = self.pad_instances(first_input_ids, first_token_mask, first_attention_mask)
         second_padded_instances = self.pad_instances(second_input_ids, second_token_mask, second_attention_mask)
+        pairs_targets = torch.tensor(pairs_targets, dtype=torch.float)
         return first_padded_instances, second_padded_instances, pairs_targets
