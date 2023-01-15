@@ -1,5 +1,5 @@
 from utils.options import train_options
-from models.siamese_model import Bert
+from models.siamese_model import CoBert
 from utils.dataset import SiameseDataset
 from trainer import TrainerConfig, ContrastiveTrainer
 import wandb
@@ -17,8 +17,8 @@ if __name__ == "__main__":
                                  viterbi_algorithm=arguments.viterbi,
                                  encoder_model=arguments.encoder_model, max_pairs=arguments.val_max_pairs)
 
-    model = Bert(encoder_model=train_dataset.encoder_model, label_to_id=train_dataset.label_to_id)
-    config = TrainerConfig(viterbi_algorithm=arguments.viterbi, lstm=arguments.lstm)
+    model = CoBert(encoder_model=train_dataset.encoder_model, label_to_id=train_dataset.label_to_id)
+    config = TrainerConfig(viterbi_algorithm=arguments.viterbi, lstm=arguments.lstm, lr=1e-5, clip_gradients=True)
     wandb.init(project="MultiCoNER", config=train_config_to_dict(config))
-    trainer = ContrastiveTrainer(model=model, config=config, train_dataset=train_dataset, val_dataset=val_dataset, )
+    trainer = ContrastiveTrainer(model=model, config=config, train_dataset=train_dataset, val_dataset=val_dataset)
     trainer.train()
