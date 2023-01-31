@@ -18,7 +18,8 @@ def get_ner_reader(data):
 
 def _assign_ner_tags(ner_tag, rep_):
     '''
-    Changing the token_masks so that only the first sub_word of a token has a True value, while the rest is False. This will be used for storing the predictions.
+    Changing the token_masks so that only the first sub_word of a token has a True value, while the rest is False.
+    This will be used for storing the predictions.
     :param ner_tag:
     :param rep_:
     :return:
