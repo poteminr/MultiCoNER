@@ -75,10 +75,11 @@ class Trainer:
         self.label_pad_token_id = self.train_dataset.label_pad_token_id
         self.metric = load("seqeval")
         self.seed = 1007
+        self.seed_everything(self.seed)
         self.checkpoint_saver = CheckpointSaver(dirpath='./model_weights', decreasing=False, top_n=1)
 
-    def create_dataloader(self, dataset: CoNLLDataset):
-        return DataLoader(dataset=dataset, batch_size=self.config.batch_size,
+    def create_dataloader(self, dataset: CoNLLDataset, shuffle=False):
+        return DataLoader(dataset=dataset, batch_size=self.config.batch_size, shuffle=shuffle,
                           collate_fn=dataset.data_collator, num_workers=self.config.num_workers)
 
     def perform_epoch(self, epoch, model, optimizer, loader, train_mode: bool):
@@ -135,7 +136,7 @@ class Trainer:
         model = self.model.to(self.device)
         wandb.watch(model)
         optimizer = AdamW(model.parameters(), lr=self.config.lr, betas=self.config.betas)
-        train_loader = self.create_dataloader(self.train_dataset)
+        train_loader = self.create_dataloader(self.train_dataset, shuffle=True)
         if self.val_dataset is not None:
             val_loader = self.create_dataloader(self.val_dataset)
 

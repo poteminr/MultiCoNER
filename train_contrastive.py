@@ -16,13 +16,16 @@ if __name__ == "__main__":
         train_data=True,
         viterbi_algorithm=arguments.viterbi,
         encoder_model=arguments.encoder_model,
-        max_pairs=arguments.train_max_pairs
+        max_pairs=arguments.train_max_pairs,
+        max_instances=arguments.max_instances
     )
     val_dataset = SiameseDataset(
         file_path=arguments.file_path.replace('-train.', '-dev.'),
         train_data=False,
         viterbi_algorithm=arguments.viterbi,
-        encoder_model=arguments.encoder_model, max_pairs=arguments.val_max_pairs
+        encoder_model=arguments.encoder_model,
+        max_pairs=arguments.val_max_pairs,
+        max_instances=arguments.max_instances
     )
 
     model = CoBert(encoder_model=train_dataset.encoder_model, label_to_id=train_dataset.label_to_id)

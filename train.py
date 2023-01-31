@@ -15,12 +15,14 @@ if __name__ == "__main__":
     train_dataset = CoNLLDataset(
         file_path=arguments.file_path,
         viterbi_algorithm=arguments.viterbi,
-        encoder_model=arguments.encoder_model
+        encoder_model=arguments.encoder_model,
+        max_instances=arguments.max_instances
     )
     val_dataset = CoNLLDataset(
         file_path=arguments.file_path.replace('-train.', '-dev.'),
         viterbi_algorithm=arguments.viterbi,
-        encoder_model=arguments.encoder_model
+        encoder_model=arguments.encoder_model,
+        max_instances=arguments.max_instances
     )
 
     baseline_model = CoBertCRF(

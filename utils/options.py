@@ -10,6 +10,7 @@ def train_options():
     parser.add_argument("--pretrained_path", default='no', type=str, help='path to pretrained CoBert')
     parser.add_argument("--train_max_pairs", default=35000, type=int, help='max_pairs for contrastive learning')
     parser.add_argument("--val_max_pairs", default=3000, type=int, help='max_pairs for contrastive learning')
+    parser.add_argument("--max_instances", default=-1, type=int, help='max_instances for CoNLLDataset')
 
     opt = parser.parse_args()
     return opt
