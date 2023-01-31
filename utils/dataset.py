@@ -1,4 +1,6 @@
 import os
+import glob
+from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
@@ -14,6 +16,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 class CoNLLDataset(Dataset):
     def __init__(self,
                  file_path: str,
+                 train_data: bool = True,
                  max_instances: int = -1,
                  max_length: int = 50,
                  encoder_model: str = 'cointegrated/rubert-tiny2',
@@ -40,7 +43,14 @@ class CoNLLDataset(Dataset):
 
         self.instances = []
         self.sentences_words = []
-        self.read_data(file_path)
+        if file_path.endswith('.conll'):
+            self.read_data(file_path)
+        else:
+            data_type = 'train' if train_data else 'dev'
+            files = glob.glob(f"{file_path}/*{data_type}.conll")
+            for file in files:
+                self.read_data(file)     
+            
 
     def get_target_size(self):
         return len(set(self.label_to_id.values()))
@@ -127,6 +137,7 @@ class CoNLLDataset(Dataset):
 class SiameseDataset(CoNLLDataset):
     def __init__(self,
                  file_path: str,
+                 train_data: bool = True,
                  max_instances: int = -1,
                  max_length: int = 50,
                  encoder_model: str = 'cointegrated/rubert-tiny2',
@@ -136,7 +147,7 @@ class SiameseDataset(CoNLLDataset):
                  identical_entities_prob: float = 0.3,
                  search_iterations: int = 100
                  ):
-        super(SiameseDataset, self).__init__(file_path, max_instances, max_length,
+        super(SiameseDataset, self).__init__(file_path, train_data, max_instances, max_length,
                                              encoder_model, viterbi_algorithm, label_pad_token_id)
 
         self.max_pairs = max_pairs
@@ -173,7 +184,7 @@ class SiameseDataset(CoNLLDataset):
     def create_pairs(self):
         logger.info(f'Creating pairs. Max pairs: {self.max_pairs}')
         used_pairs = set()
-        for _ in range(self.max_pairs):
+        for _ in tqdm(range(self.max_pairs)):
             first_entity = np.random.choice(self.entities)
             idx = self.entities.index(first_entity)
             if np.random.random() > self.identical_entities_prob:

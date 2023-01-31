@@ -13,12 +13,14 @@ if __name__ == "__main__":
     arguments = train_options()
     train_dataset = SiameseDataset(
         file_path=arguments.file_path,
+        train_data=True,
         viterbi_algorithm=arguments.viterbi,
         encoder_model=arguments.encoder_model,
         max_pairs=arguments.train_max_pairs
     )
     val_dataset = SiameseDataset(
         file_path=arguments.file_path.replace('-train.', '-dev.'),
+        train_data=False,
         viterbi_algorithm=arguments.viterbi,
         encoder_model=arguments.encoder_model, max_pairs=arguments.val_max_pairs
     )
