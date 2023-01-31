@@ -11,11 +11,17 @@ def train_config_to_dict(train_config: TrainerConfig):
 
 if __name__ == "__main__":
     arguments = train_options()
-    train_dataset = SiameseDataset(file_path=arguments.file_path, viterbi_algorithm=arguments.viterbi,
-                                   encoder_model=arguments.encoder_model, max_pairs=arguments.train_max_pairs)
-    val_dataset = SiameseDataset(file_path=arguments.file_path.replace('-train.', '-dev.'),
-                                 viterbi_algorithm=arguments.viterbi,
-                                 encoder_model=arguments.encoder_model, max_pairs=arguments.val_max_pairs)
+    train_dataset = SiameseDataset(
+        file_path=arguments.file_path,
+        viterbi_algorithm=arguments.viterbi,
+        encoder_model=arguments.encoder_model,
+        max_pairs=arguments.train_max_pairs
+    )
+    val_dataset = SiameseDataset(
+        file_path=arguments.file_path.replace('-train.', '-dev.'),
+        viterbi_algorithm=arguments.viterbi,
+        encoder_model=arguments.encoder_model, max_pairs=arguments.val_max_pairs
+    )
 
     model = CoBert(encoder_model=train_dataset.encoder_model, label_to_id=train_dataset.label_to_id)
     config = TrainerConfig(viterbi_algorithm=arguments.viterbi, lstm=arguments.lstm, lr=1e-5, clip_gradients=True)
