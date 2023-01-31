@@ -5,7 +5,7 @@ from transformers import AutoModel
 from torchcrf import CRF
 
 
-def distance_based_probability(x: torch.Tensor, y: torch.Tensor, margin: float = 1.0):
+def distance_based_probability(x: torch.tensor, y: torch.tensor, margin: float = 1.0) -> float:
     x = nn.functional.normalize(x, dim=1)
     y = nn.functional.normalize(y, dim=1)
     euclidean_distance = torch.square(torch.sum(torch.square(x - y), dim=1, keepdim=True))
@@ -13,7 +13,7 @@ def distance_based_probability(x: torch.Tensor, y: torch.Tensor, margin: float =
     return p
 
 
-def masked_mean_pooling(data_tensor, mask, dim):
+def masked_mean_pooling(data_tensor: torch.tensor, mask: torch.tensor, dim: int) -> torch.tensor:
     if dim < 0:
         dim = len(data_tensor.shape) + dim
 
