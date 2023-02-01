@@ -7,3 +7,4 @@ utils/metric.py
 .idea
 .vscode
 wandb
+public_data

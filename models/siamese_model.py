@@ -58,15 +58,20 @@ class CoBertCRF(nn.Module):
         self.target_size = len(self.id_to_tag)
         
         self.encoder = CoBert(encoder_model, label_to_id, dropout_rate)
-        self.encoder.load_state_dict(torch.load(pretrained_encoder_model_path))
+        if pretrained_encoder_model_path is not None:
+            self.encoder.load_state_dict(torch.load(pretrained_encoder_model_path))
         
         self.feedforward = nn.Linear(in_features=self.encoder.encoder.config.hidden_size, out_features=self.target_size)
         self.crf = CRF(self.target_size, batch_first=True)
 
-    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor):
-        batch_size = input_ids.size(0)
+    def get_token_scores(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
         embedded_text_input = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
         token_scores = self.feedforward(embedded_text_input)
+        return token_scores
+    
+    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor):
+        batch_size = input_ids.size(0)
+        token_scores = self.get_token_scores(input_ids=input_ids, attention_mask=attention_mask)
         loss, output_tags = self.apply_crf(token_scores, labels, attention_mask, batch_size=batch_size)
         return loss, output_tags, token_scores
 
@@ -74,3 +79,9 @@ class CoBertCRF(nn.Module):
         loss = -self.crf(emissions=token_scores, tags=labels, mask=attention_mask) / batch_size
         tags = self.crf.decode(emissions=token_scores, mask=attention_mask)
         return loss, tags
+    
+    def predict_tags(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
+        token_scores = self.get_token_scores(input_ids=input_ids, attention_mask=attention_mask)
+        tags = self.crf.decode(emissions=token_scores, mask=attention_mask)
+        return tags
+    

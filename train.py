@@ -18,6 +18,7 @@ if __name__ == "__main__":
         encoder_model=arguments.encoder_model,
         max_instances=arguments.max_instances
     )
+    
     val_dataset = CoNLLDataset(
         file_path=arguments.file_path.replace('-train.', '-dev.'),
         viterbi_algorithm=arguments.viterbi,
