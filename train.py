@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     baseline_model = CoBertCRF(
         encoder_model=arguments.encoder_model,
-        pretrained_encoder_model_path=arguments.pretrained_path,
+        pretrained_encoder_model_path=arguments.encoder_pretrained_path,
         label_to_id=train_dataset.label_to_id
     )
 
