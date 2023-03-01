@@ -25,7 +25,7 @@ The fine to coarse level mapping of the tags are as follows:
 
 ## Approach
 Two-stage fine-tuning of Transformer was performed.
-### Constastive learning 
+### Contrastive learning 
 The first stage is a contrastive learning aimed at changing the distance between embeddings of words/sub-words, that was produced by Transformer model. 
 For example, named entities of different types have a large distance and small distance for same types. 
 
